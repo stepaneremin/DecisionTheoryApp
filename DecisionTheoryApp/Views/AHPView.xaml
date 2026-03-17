@@ -40,8 +40,23 @@
 
         </StackPanel>
 
-        <DataGrid x:Name="MatrixGrid"
-                  Grid.Column="1"/>
+		<TabControl Grid.Column="1">
+
+			<TabItem Header="Матрица критериев">
+
+				<DataGrid x:Name="MatrixGrid"
+						  AutoGenerateColumns="True"/>
+
+			</TabItem>
+
+			<TabItem Header="Матрицы альтернатив">
+
+				<DataGrid x:Name="AlternativeMatrixGrid"
+						  AutoGenerateColumns="True"/>
+
+			</TabItem>
+
+		</TabControl>
 
     </Grid>
 

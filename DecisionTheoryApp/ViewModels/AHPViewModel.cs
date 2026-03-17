@@ -1,12 +1,17 @@
-﻿using System;
+﻿using DecisionTheoryApp.Algorithms.AHP;
+using DecisionTheoryApp.Models;
+using DecisionTheoryApp.Services;
+using Microsoft.Win32;
+using System;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
-using DecisionTheoryApp.Models;
-using DecisionTheoryApp.Algorithms.AHP;
-using DecisionTheoryApp.Services;
 
 namespace DecisionTheoryApp.ViewModels
 {
@@ -41,6 +46,7 @@ namespace DecisionTheoryApp.ViewModels
         public ICommand LoadProjectCommand { get; }
 
         public ICommand SelectSectionCommand { get; }
+        public ICommand CreateReportCommand { get; }
 
         public AHPViewModel(ProjectService projectService)
         {
@@ -61,6 +67,7 @@ namespace DecisionTheoryApp.ViewModels
             SaveProjectCommand = new RelayCommand(SaveProject, CanSaveProject);
             LoadProjectCommand = new RelayCommand(LoadProject);
             SelectSectionCommand = new RelayCommand(SelectSection);
+            CreateReportCommand = new RelayCommand(CreateReport, CanCreateReport);
 
             // Подписка на изменения проекта
             _projectService.ProjectChanged += OnProjectChanged;
@@ -447,6 +454,38 @@ namespace DecisionTheoryApp.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+
+        private void CreateReport(object? parameter)
+        {
+            try
+            {
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Сохранение отчета",
+                    Filter = "Word документы (*.docx)|*.docx",
+                    DefaultExt = ".docx",
+                    FileName = $"{ProjectName}_отчет_{DateTime.Now:yyyyMMdd_HHmm}.docx"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    StatusMessage = "Формирование отчета...";
+                    _reportService.GenerateAHPReport(dialog.FileName);
+                    StatusMessage = $"Отчет сохранен: {System.IO.Path.GetFileName(dialog.FileName)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusMessage = "Ошибка при создании отчета";
+            }
+        }
+
+        private bool CanCreateReport(object? parameter)
+        {
+            return IsCalculated;
+        }
     }
 
     /// <summary>
@@ -482,4 +521,7 @@ namespace DecisionTheoryApp.ViewModels
             remove => CommandManager.RequerySuggested -= value;
         }
     }
+
+
+
 }

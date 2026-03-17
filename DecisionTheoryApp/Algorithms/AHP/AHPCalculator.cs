@@ -7,7 +7,7 @@ namespace DecisionTheoryApp.Algorithms.AHP
 {
     /// <summary>
     /// Калькулятор для метода анализа иерархий (МАИ)
-    /// </summary>
+    /// </summary>dd
     public class AHPCalculator
     {
         private readonly ProjectData _projectData;

@@ -5,29 +5,29 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DecisionTheoryApp"
         mc:Ignorable="d"
-        Title="Decision Theory App" Height="400" Width="600"
+        Title="Decision Theory App" Height="450" Width="800"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
         <Style x:Key="MethodButtonStyle" TargetType="Button">
             <Setter Property="Margin" Value="20"/>
-            <Setter Property="Padding" Value="20,15"/>
+            <Setter Property="Padding" Value="20"/>
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Background" Value="#3498db"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
+            <Setter Property="Width" Value="250"/>
+            <Setter Property="MinHeight" Value="100"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="ContentTemplate">
                 <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                CornerRadius="10"
-                                BorderThickness="0">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                    </ControlTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" 
+                                  TextWrapping="Wrap" 
+                                  TextAlignment="Center"/>
+                    </DataTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
@@ -51,7 +51,8 @@
         <Border Grid.Row="0" Background="#2c3e50" Padding="20">
             <TextBlock Text="Система поддержки принятия решений" 
                       FontSize="24" FontWeight="Bold" Foreground="White"
-                      HorizontalAlignment="Center"/>
+                      HorizontalAlignment="Center"
+                      TextWrapping="Wrap"/>
         </Border>
 
         <!-- Кнопки выбора метода -->
@@ -62,12 +63,10 @@
 
             <Button Content="Метод анализа иерархий" 
                     Style="{StaticResource MethodButtonStyle}"
-                    Width="200"
                     Click="AHPButton_Click"/>
 
             <Button Content="Метод главного критерия" 
                     Style="{StaticResource MethodButtonStyle}"
-                    Width="200"
                     Background="#e67e22"
                     Click="MainCriterionButton_Click"/>
         </StackPanel>
