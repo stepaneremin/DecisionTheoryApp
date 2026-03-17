@@ -1,0 +1,75 @@
+﻿<Window x:Class="DecisionTheoryApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DecisionTheoryApp"
+        mc:Ignorable="d"
+        Title="Decision Theory App" Height="400" Width="600"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style x:Key="MethodButtonStyle" TargetType="Button">
+            <Setter Property="Margin" Value="20"/>
+            <Setter Property="Padding" Value="20,15"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#3498db"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="10"
+                                BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2980b9"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1f618d"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#ecf0f1">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <Border Grid.Row="0" Background="#2c3e50" Padding="20">
+            <TextBlock Text="Система поддержки принятия решений" 
+                      FontSize="24" FontWeight="Bold" Foreground="White"
+                      HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- Кнопки выбора метода -->
+        <StackPanel Grid.Row="1" 
+                    VerticalAlignment="Center" 
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal">
+
+            <Button Content="Метод анализа иерархий" 
+                    Style="{StaticResource MethodButtonStyle}"
+                    Width="200"
+                    Click="AHPButton_Click"/>
+
+            <Button Content="Метод главного критерия" 
+                    Style="{StaticResource MethodButtonStyle}"
+                    Width="200"
+                    Background="#e67e22"
+                    Click="MainCriterionButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
