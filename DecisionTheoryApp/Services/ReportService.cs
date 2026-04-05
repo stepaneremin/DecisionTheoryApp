@@ -153,11 +153,17 @@ namespace DecisionTheoryApp.Services
                 // Значения
                 for (int j = 0; j < n; j++)
                 {
-                    string value = matrix[i, j].ToString("F2");
-                    if (Math.Abs(matrix[i, j] - 1.0) < 0.0001) value = "1";
-                    if (Math.Abs(matrix[i, j] - Math.Round(matrix[i, j], 2)) < 0.0001)
+                    string value;
+                    if (i == j)
+                        value = "1";
+                    else if (double.IsNaN(matrix[i, j]))
+                        value = "";
+                    else
                     {
-                        value = matrix[i, j].ToString("F0");
+                        // Округляем до 2 знаков и убираем trailing zeros
+                        // Используем русскую культуру чтобы разделитель был запятой
+                        double rounded = Math.Round(matrix[i, j], 2);
+                        value = rounded.ToString("G", new System.Globalization.CultureInfo("ru-RU"));
                     }
 
                     var cell = new TableCell(new Paragraph(new Run(new Text(value))));

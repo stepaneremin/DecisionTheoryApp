@@ -16,23 +16,23 @@ namespace DecisionTheoryApp
 
         private void AHPButton_Click(object sender, RoutedEventArgs e)
         {
-            var projectService = ((App)Application.Current).ProjectService;
-            var ahpView = new AHPView();
-            ahpView.ShowDialog();
+            try
+            {
+                var projectService = ((App)Application.Current).ProjectService;
+                var ahpView = new AHPView(projectService); // Добавлен параметр
+                ahpView.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при открытии окна: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void MainCriterionButton_Click(object sender, RoutedEventArgs e)
         {
-            // Показываем сообщение-заглушку
-            MessageBox.Show(
-                MainCriterionMethod.GetPlaceholderMessage(),
-                "Информация",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            // Или открываем окно с заглушкой
-            // var multiCriteriaView = new MultiCriteriaView();
-            // multiCriteriaView.ShowDialog();
+            var multiCriteriaView = new MultiCriteriaView();
+            multiCriteriaView.ShowDialog();
         }
     }
 }

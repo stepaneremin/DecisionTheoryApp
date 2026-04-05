@@ -1,400 +1,456 @@
-﻿using DecisionTheoryApp.Helpers;
-using DecisionTheoryApp.Models;
-using DecisionTheoryApp.Services;
-using Microsoft.VisualBasic;
-using Microsoft.Win32;
-using System;
-using System;
-using System.Data;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Linq;
+using DecisionTheoryApp.Services;
+using DecisionTheoryApp.ViewModels;
+using System.Data;
+using System.Collections.Generic;
 
 namespace DecisionTheoryApp.Views
 {
     public partial class AHPView : Window
     {
-        private DataTable matrixTable = new DataTable();
-        private ProjectData project = new ProjectData();
+        private readonly AHPViewModel _viewModel;
 
-        public AHPView()
+        // Отслеживаем ячейки с ошибками: ключ = (таблица, строка, столбец DataTable)
+        private readonly HashSet<(DataTable, int, int)> _invalidCells = new();
+
+        // Защита от рекурсивного входа при программной записи в DataTable
+        private bool _isUpdatingMatrix = false;
+
+        public AHPView(ProjectService projectService)
         {
             InitializeComponent();
+            _viewModel = new AHPViewModel(projectService);
+            DataContext = _viewModel;
+            Closed += (s, e) => _viewModel.Cleanup();
+
+            // Перестраиваем колонки истории когда добавляется первая запись
+            _viewModel.CalculationHistory.CollectionChanged += (s, e) =>
+            {
+                if (e.NewItems != null && e.NewItems.Count > 0)
+                    RebuildHistoryColumns();
+            };
         }
 
-        private void AddCriterion(object sender, RoutedEventArgs e)
+        private void CriteriaMatrixGrid_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
         {
-            string name = Interaction.InputBox("Введите критерий");
-
-            if (!string.IsNullOrWhiteSpace(name))
+            if (e.PropertyName == "CriterionName")
             {
-                CriteriaList.Items.Add(name);
-                project.Criteria.Add(new Criterion { Name = name });
+                e.Column.Header = "Критерии";
+                if (e.Column is DataGridTextColumn textColumn)
+                    textColumn.IsReadOnly = true;
             }
-        }
-
-        private void AddAlternative(object sender, RoutedEventArgs e)
-        {
-            string name = Interaction.InputBox("Введите альтернативу");
-
-            if (!string.IsNullOrWhiteSpace(name))
+            else if (e.PropertyName.StartsWith("Col") && int.TryParse(e.PropertyName.Substring(3), out int colIdx))
             {
-                AlternativeList.Items.Add(name);
-                project.Alternatives.Add(new Alternative { Name = name });
-            }
-        }
+                // Заголовок = имя критерия по индексу
+                if (colIdx < _viewModel.Criteria.Count)
+                    e.Column.Header = _viewModel.Criteria[colIdx].Name;
 
-        private void CreateMatrix(object sender, RoutedEventArgs e)
-        {
-            int n = project.Criteria.Count;
-
-            if (n == 0)
-            {
-                MessageBox.Show("Добавьте критерии");
-                return;
-            }
-
-            matrixTable = new DataTable();
-
-            matrixTable.Columns.Add("Критерий");
-
-            for (int i = 0; i < n; i++)
-            {
-                matrixTable.Columns.Add(project.Criteria[i].Name);
-            }
-
-            for (int i = 0; i < n; i++)
-            {
-                var row = matrixTable.NewRow();
-
-                row[0] = project.Criteria[i].Name;
-
-                for (int j = 0; j < n; j++)
+                if (e.Column is DataGridTextColumn textColumn)
                 {
-                    row[j + 1] = (i == j) ? 1 : "";
+                    textColumn.Binding = new System.Windows.Data.Binding(e.PropertyName)
+                    {
+                        Converter = new Converters.NullToEmptyConverter(),
+                        UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+                    };
+                    textColumn.ElementStyle = (Style)FindResource("CenteredCellStyle");
+                    textColumn.EditingElementStyle = (Style)FindResource("ValidatedEditingStyle");
                 }
-
-                matrixTable.Rows.Add(row);
             }
-
-            MatrixGrid.ItemsSource = matrixTable.DefaultView;
-
-            MatrixGrid.CanUserAddRows = false;
-            //MatrixGrid.CanUserAddColumns = false; хуйня какая-то такого правила нет вообще
-            CreateAlternativeMatrix();
         }
 
-        //private void CreateAlternativeMatrix()
-        //{
-        //    int n = project.Alternatives.Count;
-
-        //    if (n == 0)
-        //        return;
-
-        //    DataTable table = new DataTable();
-
-        //    table.Columns.Add("Альтернатива");
-
-        //    for (int i = 0; i < n; i++)
-        //    {
-        //        table.Columns.Add(project.Alternatives[i].Name);
-        //    }
-
-        //    for (int i = 0; i < n; i++)
-        //    {
-        //        var row = table.NewRow();
-
-        //        row[0] = project.Alternatives[i].Name;
-
-        //        for (int j = 0; j < n; j++)
-        //        {
-        //            row[j + 1] = (i == j) ? 1 : 1;
-        //        }
-
-        //        table.Rows.Add(row);
-        //    }
-
-        //    AlternativeMatrixGrid.ItemsSource = table.DefaultView;
-        //}
-
-        private void CreateAlternativeMatrix()
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
         {
-            int n = project.Alternatives.Count;
-
-            if (n == 0)
-                return;
-
-            DataTable table = new DataTable();
-
-            // Добавляем колонки
-            table.Columns.Add("Альтернатива");
-
-            for (int i = 0; i < n; i++)
-            {
-                table.Columns.Add(project.Alternatives[i].Name);
-            }
-
-            // Заполняем строки
-            for (int i = 0; i < n; i++)
-            {
-                var row = table.NewRow();
-
-                row[0] = project.Alternatives[i].Name;
-
-                for (int j = 0; j < n; j++)
-                {
-                    row[j + 1] = (i == j) ? 1 : ""; // Пустые ячейки для заполнения
-                }
-
-                table.Rows.Add(row);
-            }
-
-            // Отключаем автоматическое создание пустых строк
-            AlternativeMatrixGrid.CanUserAddRows = false;
-
-            // Отключаем удаление строк (опционально)
-            AlternativeMatrixGrid.CanUserDeleteRows = false;
-
-            // Устанавливаем источник данных
-            AlternativeMatrixGrid.ItemsSource = table.DefaultView;
+            OpenHelpFile("инструкция_МАИ.html");
         }
 
-        //private void Calculate(object sender, RoutedEventArgs e)
-        //{
-        //    int n = project.Criteria.Count;
-
-        //    if (n == 0)
-        //    {
-        //        MessageBox.Show("Нет критериев");
-        //        return;
-        //    }
-
-        //    double[,] matrix = new double[n, n];
-
-        //    for (int i = 0; i < n; i++)
-        //    {
-        //        for (int j = 0; j < n; j++)
-        //        {
-        //            matrix[i, j] = Convert.ToDouble(matrixTable.Rows[i][j + 1]);
-        //        }
-        //    }
-
-        //    double[] weights = CalculateWeights(matrix);
-
-        //    string result = "";
-
-        //    for (int i = 0; i < weights.Length; i++)
-        //    {
-        //        result += project.Criteria[i].Name + " : " + weights[i].ToString("F3") + "\n";
-        //    }
-
-        //    MessageBox.Show(result, "Веса критериев");
-        //}
-        private void Calculate(object sender, RoutedEventArgs e)
+        private static void OpenHelpFile(string fileName)
         {
             try
             {
-                int n = project.Criteria.Count;
-
-                if (n == 0)
+                // Ищем рядом с .exe
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string path = Path.Combine(exeDir, fileName);
+                if (!File.Exists(path))
                 {
-                    MessageBox.Show("Нет критериев", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"Файл справки не найден:\n{path}\n\nПоложите файл '{fileName}' рядом с .exe",
+                        "Справка", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
-
-                double[,] matrix = new double[n, n];
-                List<string> errors = new List<string>();
-
-                // Заполняем матрицу с парсингом значений
-                for (int i = 0; i < n; i++)
-                {
-                    for (int j = 0; j < n; j++)
-                    {
-                        string cellValue = matrixTable.Rows[i][j + 1].ToString();
-
-                        try
-                        {
-                            matrix[i, j] = MatrixValueParser.ParseToDouble(cellValue);
-
-                            // Проверяем, что значение положительное
-                            if (matrix[i, j] <= 0)
-                            {
-                                errors.Add($"Ячейка [{i + 1}, {j + 1}]: значение должно быть положительным");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            errors.Add($"Ячейка [{i + 1}, {j + 1}]: '{cellValue}' - {ex.Message}");
-                        }
-                    }
-                }
-
-                // Если есть ошибки, показываем их и прерываем расчет
-                if (errors.Count > 0)
-                {
-                    string errorMessage = "Ошибки при чтении матрицы:\n" + string.Join("\n", errors);
-                    MessageBox.Show(errorMessage, "Ошибка ввода",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                // Проверяем обратную симметричность (опционально)
-                CheckMatrixSymmetry(matrix, n);
-
-                double[] weights = CalculateWeights(matrix);
-
-                string result = "Веса критериев:\n\n";
-                for (int i = 0; i < weights.Length; i++)
-                {
-                    result += $"{project.Criteria[i].Name}: {weights[i]:F3} ({weights[i] * 100:F1}%)\n";
-                }
-
-                MessageBox.Show(result, "Результат расчета",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при расчете: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Не удалось открыть справку: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // Когда фокус уходит из грида (например, пользователь кликает на кнопку добавить/удалить),
+        // принудительно коммитим текущую ячейку — иначе первый клик поглощается передачей фокуса
+        // и команда кнопки не выполняется, а значение не попадает в модель.
+        private void MatrixGrid_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+        {
+            var grid = sender as DataGrid;
+            if (grid == null) return;
+
+            // Коммитим только если новый фокус ушёл за пределы грида
+            if (!grid.IsKeyboardFocusWithin)
+            {
+                grid.CommitEdit(DataGridEditingUnit.Cell, exitEditingMode: true);
+                grid.CommitEdit(DataGridEditingUnit.Row, exitEditingMode: true);
+            }
+        }
+
+        // ─── Переименование критериев и альтернатив ───────────────────────
+
+        // Двойной клик по ListBox критериев — находим TextBlock под курсором и переключаем в TextBox
+        private void CriteriaListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            ActivateRenameForClickedItem(e.OriginalSource, "CriterionTextBlock", "CriterionTextBox");
+        }
+
+        private void AlternativesListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            ActivateRenameForClickedItem(e.OriginalSource, "AlternativeTextBlock", "AlternativeTextBox");
+        }
+
+        private void ActivateRenameForClickedItem(object originalSource, string textBlockName, string textBoxName)
+        {
+            // Поднимаемся по визуальному дереву от места клика до Grid элемента списка
+            var element = originalSource as DependencyObject;
+            while (element != null)
+            {
+                if (element is Grid grid)
+                {
+                    var textBlock = grid.FindName(textBlockName) as TextBlock;
+                    var textBox = grid.FindName(textBoxName) as TextBox;
+                    if (textBlock != null && textBox != null)
+                    {
+                        textBlock.Visibility = Visibility.Collapsed;
+                        textBox.Visibility = Visibility.Visible;
+                        textBox.SelectAll();
+                        textBox.Focus();
+                        return;
+                    }
+                }
+                element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+            }
+        }
+
+        // Enter — применяем, Escape — отменяем
+        private void RenameTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                CommitRename(textBox);
+                e.Handled = true;
+            }
+            else if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                CancelRename(textBox);
+                e.Handled = true;
+            }
+        }
+
+        private void CriterionTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            CommitRename(sender as TextBox);
+        }
+
+        private void AlternativeTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            CommitRename(sender as TextBox);
+        }
+
+        private void CommitRename(TextBox? textBox)
+        {
+            if (textBox == null) return;
+
+            string newName = textBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                CancelRename(textBox);
+                return;
+            }
+
+            // Определяем тип объекта по DataContext
+            var dataContext = textBox.DataContext;
+            if (dataContext is DecisionTheoryApp.Models.Criterion criterion)
+            {
+                if (newName != criterion.Name)
+                {
+                    var newList = _viewModel.Criteria
+                        .Select(c => c.Id == criterion.Id ? newName : c.Name)
+                        .ToList();
+                    _viewModel.ProjectService.UpdateCriteria(newList);
+                }
+            }
+            else if (dataContext is DecisionTheoryApp.Models.Alternative alternative)
+            {
+                if (newName != alternative.Name)
+                {
+                    var newList = _viewModel.Alternatives
+                        .Select(a => a.Id == alternative.Id ? newName : a.Name)
+                        .ToList();
+                    _viewModel.ProjectService.UpdateAlternatives(newList);
+                }
+            }
+
+            SwitchToViewMode(textBox);
+        }
+
+        private void CancelRename(TextBox? textBox)
+        {
+            if (textBox == null) return;
+            // Сбрасываем текст к исходному значению
+            var be = textBox.GetBindingExpression(TextBox.TextProperty);
+            be?.UpdateTarget();
+            SwitchToViewMode(textBox);
+        }
+
+        private void SwitchToViewMode(TextBox textBox)
+        {
+            var parent = textBox.Parent as Grid;
+            if (parent == null) return;
+            var textBlock = parent.Children.OfType<TextBlock>().FirstOrDefault();
+            if (textBlock != null) textBlock.Visibility = Visibility.Visible;
+            textBox.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
-        /// Проверяет обратную симметричность матрицы
+        /// Динамически строим колонки таблицы истории по текущему набору альтернатив.
+        /// Первые две колонки (#, Время) объявлены в XAML, добавляем колонки альтернатив.
         /// </summary>
-        private void CheckMatrixSymmetry(double[,] matrix, int n)
+        private void RebuildHistoryColumns()
         {
-            const double tolerance = 0.001; // Допустимая погрешность
+            // Оставляем первые две колонки (# и Время), убираем остальные
+            while (HistoryGrid.Columns.Count > 2)
+                HistoryGrid.Columns.RemoveAt(HistoryGrid.Columns.Count - 1);
 
-            for (int i = 0; i < n; i++)
+            var first = _viewModel.CalculationHistory.FirstOrDefault();
+            if (first == null) return;
+
+            for (int i = 0; i < first.Priorities.Count; i++)
             {
-                for (int j = i + 1; j < n; j++)
+                int idx = i; // захват для лямбды
+                var col = new DataGridTemplateColumn
                 {
-                    double expected = 1.0 / matrix[i, j];
-                    double actual = matrix[j, i];
-
-                    if (Math.Abs(expected - actual) > tolerance)
-                    {
-                        MessageBox.Show(
-                            $"Предупреждение: Матрица не является обратно-симметричной.\n" +
-                            $"matrix[{i + 1},{j + 1}] = {matrix[i, j]:F3}, " +
-                            $"matrix[{j + 1},{i + 1}] = {actual:F3}, ожидалось {expected:F3}",
-                            "Предупреждение",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                        break;
-                    }
-                }
-            }
-        }
-
-
-
-        private double[] CalculateWeights(double[,] matrix)
-        {
-            int n = matrix.GetLength(0);
-
-            double[] weights = new double[n];
-
-            for (int i = 0; i < n; i++)
-            {
-                double product = 1;
-
-                for (int j = 0; j < n; j++)
-                {
-                    product *= matrix[i, j];
-                }
-
-                weights[i] = Math.Pow(product, 1.0 / n);
-            }
-
-            double sum = 0;
-
-            for (int i = 0; i < n; i++)
-                sum += weights[i];
-
-            for (int i = 0; i < n; i++)
-                weights[i] /= sum;
-
-            return weights;
-        }
-
-        private void SaveProject(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Сохранение проекта пока отключено");
-        }
-
-        private void LoadProject(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Загрузка проекта пока отключена");
-        }
-
-        private void CreateReport(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // Отладочное сообщение
-                System.Diagnostics.Debug.WriteLine("CreateReport вызван!");
-                MessageBox.Show("Метод CreateReport вызван!", "Отладка",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-
-                var viewModel = DataContext as ViewModels.AHPViewModel;
-                if (viewModel == null)
-                {
-                    MessageBox.Show("ViewModel не найден!", "Ошибка");
-                    return;
-                }
-
-                MessageBox.Show($"ViewModel найден. IsCalculated = {viewModel.IsCalculated}", "Отладка");
-
-                if (!viewModel.IsCalculated)
-                {
-                    MessageBox.Show("Сначала выполните расчет!", "Предупреждение");
-                    return;
-                }
-
-                var dialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Title = "Сохранение отчета",
-                    Filter = "Word документы (*.docx)|*.docx",
-                    DefaultExt = ".docx",
-                    FileName = $"{viewModel.ProjectName}_отчет_{DateTime.Now:yyyyMMdd_HHmm}.docx"
+                    Header = first.Priorities[idx].Name,
+                    Width = new DataGridLength(1, DataGridLengthUnitType.Star)
                 };
 
-                MessageBox.Show($"Диалог создан. FileName: {dialog.FileName}", "Отладка");
+                // CellTemplate — отображаем приоритет, лидер жирным с ★
+                var cellTemplate = new DataTemplate();
+                var factory = new FrameworkElementFactory(typeof(TextBlock));
+                factory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding($"Priorities[{idx}].DisplayText"));
+                factory.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+                factory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                factory.SetValue(TextBlock.MarginProperty, new Thickness(4, 2, 4, 2));
 
-                if (dialog.ShowDialog() == true)
+                // Жирный если лидер
+                var style = new Style(typeof(TextBlock));
+                var trigger = new DataTrigger
                 {
-                    MessageBox.Show($"Выбран файл: {dialog.FileName}", "Отладка");
+                    Binding = new System.Windows.Data.Binding($"Priorities[{idx}].IsLeader"),
+                    Value = true
+                };
+                trigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+                trigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x53, 0x72, 0x3c))));
+                style.Triggers.Add(trigger);
+                factory.SetValue(TextBlock.StyleProperty, style);
 
-                    viewModel.StatusMessage = "Формирование отчета...";
+                cellTemplate.VisualTree = factory;
+                col.CellTemplate = cellTemplate;
+                HistoryGrid.Columns.Add(col);
+            }
+        }
 
-                    var projectService = ((App)Application.Current).ProjectService;
-                    var reportService = new Services.ReportService(projectService);
+        // ─── Принудительно коммитит все гриды ────────────────────────────
+        private void CommitAllGrids()
+        {
+            CommitGrid(CriteriaMatrixGrid);
+            foreach (var grid in FindVisualChildren<DataGrid>(AlternativesItemsControl))
+                CommitGrid(grid);
+        }
 
-                    MessageBox.Show("Начинаю генерацию отчета...", "Отладка");
+        private void CommitGrid(DataGrid grid)
+        {
+            if (grid == null) return;
+            grid.CommitEdit(DataGridEditingUnit.Cell, exitEditingMode: true);
+            grid.CommitEdit(DataGridEditingUnit.Row, exitEditingMode: true);
+        }
 
-                    reportService.GenerateAHPReport(dialog.FileName);
+        private static IEnumerable<T> FindVisualChildren<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null) yield break;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) yield return t;
+                foreach (var descendant in FindVisualChildren<T>(child))
+                    yield return descendant;
+            }
+        }
 
-                    MessageBox.Show("Отчет успешно сгенерирован!", "Отладка");
+        // Вызывается перед любой командой изменения списка критериев/альтернатив
+        // Вызывается по Click на кнопках добавления/удаления — ДО выполнения команды
+        private void CriteriaAlternativesButton_Click(object sender, RoutedEventArgs e)
+        {
+            CommitAllGrids();
+        }
 
-                    viewModel.StatusMessage = $"Отчет сохранен: {System.IO.Path.GetFileName(dialog.FileName)}";
+
+        // Запрет редактирования диагональных ячеек (там всегда 1)
+        private void MatrixGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            var grid = sender as DataGrid;
+            if (grid == null) return;
+
+            int rowIndex = e.Row.GetIndex();
+            int colIndex = grid.Columns.IndexOf(e.Column);
+
+            // colIndex 0 — столбец с именем (уже ReadOnly), colIndex-1 = индекс в матрице
+            if (colIndex > 0 && (colIndex - 1) == rowIndex)
+                e.Cancel = true;
+        }
+
+        // При вводе a[i,j]=c автоматически ставит a[j,i]=1/c
+        // Допустимые значения по шкале Саати: целые от 1 до 9
+        private void MatrixGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit) return;
+
+            var grid = sender as DataGrid;
+            if (grid == null) return;
+
+            var table = (grid.ItemsSource as DataView)?.Table ?? grid.ItemsSource as DataTable;
+            if (table == null) return;
+
+            int rowIndex = e.Row.GetIndex();
+            int colIndex = grid.Columns.IndexOf(e.Column);
+
+            if (colIndex <= 0) return;
+
+            int i = rowIndex;
+            int j = colIndex - 1;
+
+            if (i == j) return;
+
+            var textBox = e.EditingElement as System.Windows.Controls.TextBox;
+            if (textBox == null) return;
+
+            string input = textBox.Text.Trim().Replace(',', '.');
+
+            // Проверка: значение должно быть целым числом от 1 до 9
+            bool isValid = double.TryParse(input, System.Globalization.NumberStyles.Any,
+                               System.Globalization.CultureInfo.InvariantCulture, out double value)
+                           && value >= 1 && value <= 9
+                           && value == Math.Floor(value);
+
+            var cellKey = (table, i, j);
+            var reciprocalKey = (table, j, i);
+
+            if (!isValid)
+            {
+                // Подсвечиваем ячейку красным
+                textBox.Background = new SolidColorBrush(Color.FromRgb(255, 200, 200));
+                textBox.Foreground = Brushes.DarkRed;
+
+                // Регистрируем ошибку
+                _invalidCells.Add(cellKey);
+                _viewModel.HasValidationErrors = true;
+
+                MessageBox.Show(
+                    "Значение должно быть целым числом от 1 до 9 (шкала Саати).\nВведите число от 1 до 9.",
+                    "Некорректное значение",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            // Значение корректное — снимаем ошибку для этой ячейки
+            textBox.Background = Brushes.White;
+            textBox.Foreground = Brushes.Black;
+            _invalidCells.Remove(cellKey);
+            _invalidCells.Remove(reciprocalKey); // симметричная ячейка тоже станет корректной
+            _viewModel.HasValidationErrors = _invalidCells.Count > 0;
+
+            double reciprocal = Math.Round(1.0 / value, 2);
+
+            // Флаг предотвращает повторный вход в CellEditEnding при программной
+            // записи в DataTable ниже
+            if (_isUpdatingMatrix) return;
+            _isUpdatingMatrix = true;
+            try
+            {
+                // Пишем в модель — синхронно, чтобы значения были актуальны
+                // даже если пользователь немедленно нажмёт добавить/удалить
+                var projectService = _viewModel.ProjectService;
+                if (grid.Name == "CriteriaMatrixGrid")
+                {
+                    projectService.UpdateCriteriaMatrixValue(i, j, value);
                 }
                 else
                 {
-                    MessageBox.Show("Диалог отменен пользователем", "Отладка");
+                    var criterionName = grid.Tag as string;
+                    var altMatrices = _viewModel.AlternativesMatricesTables;
+                    for (int k = 0; k < altMatrices.Count; k++)
+                    {
+                        if (altMatrices[k].CriterionName == criterionName)
+                        {
+                            projectService.UpdateAlternativesMatrixValue(k, i, j, value);
+                            break;
+                        }
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}\n\nStack: {ex.StackTrace}", "Ошибка");
 
-                if (DataContext is ViewModels.AHPViewModel viewModel)
-                    viewModel.StatusMessage = "Ошибка при создании отчета";
+                // Пишем симметричную ячейку в DataTable синхронно
+                table.Rows[j][i + 1] = reciprocal;
+            }
+            finally
+            {
+                _isUpdatingMatrix = false;
             }
         }
 
+        private void AlternativesMatrixGrid_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+        {
+            var grid = sender as DataGrid;
 
+            if (e.PropertyName == "AlternativeName")
+            {
+                var criterionName = grid?.Tag as string;
+                e.Column.Header = !string.IsNullOrEmpty(criterionName) ? criterionName : "Альтернативы";
+                if (e.Column is DataGridTextColumn textColumn)
+                    textColumn.IsReadOnly = true;
+            }
+            else if (e.PropertyName.StartsWith("Col") && int.TryParse(e.PropertyName.Substring(3), out int colIdx))
+            {
+                // Заголовок = имя альтернативы по индексу
+                if (colIdx < _viewModel.Alternatives.Count)
+                    e.Column.Header = _viewModel.Alternatives[colIdx].Name;
+
+                if (e.Column is DataGridTextColumn textColumn)
+                {
+                    textColumn.Binding = new System.Windows.Data.Binding(e.PropertyName)
+                    {
+                        Converter = new Converters.NullToEmptyConverter(),
+                        UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+                    };
+                    textColumn.ElementStyle = (Style)FindResource("CenteredCellStyle");
+                    textColumn.EditingElementStyle = (Style)FindResource("ValidatedEditingStyle");
+                }
+            }
+        }
     }
 }

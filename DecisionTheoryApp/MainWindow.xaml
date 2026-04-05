@@ -6,53 +6,71 @@
         xmlns:local="clr-namespace:DecisionTheoryApp"
         mc:Ignorable="d"
         Title="Decision Theory App" Height="450" Width="800"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="#FFF5F9">
 
     <Window.Resources>
+        <LinearGradientBrush x:Key="PinkGradient" EndPoint="1,0.5" StartPoint="0,0.5">
+            <GradientStop Color="#f4c3d9" Offset="0"/>
+            <GradientStop Color="#e9bbec" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GreenGradient" EndPoint="1,0.5" StartPoint="0,0.5">
+            <GradientStop Color="#d7f6bb" Offset="0"/>
+            <GradientStop Color="#b8e09b" Offset="1"/>
+        </LinearGradientBrush>
+
         <Style x:Key="MethodButtonStyle" TargetType="Button">
             <Setter Property="Margin" Value="20"/>
             <Setter Property="Padding" Value="20"/>
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="#3498db"/>
-            <Setter Property="Foreground" Value="White"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Width" Value="250"/>
             <Setter Property="MinHeight" Value="100"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="ContentTemplate">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#a01c46"/>
+            <Setter Property="Template">
                 <Setter.Value>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}" 
-                                  TextWrapping="Wrap" 
-                                  TextAlignment="Center"/>
-                    </DataTemplate>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="12"
+                                Padding="20">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2980b9"/>
+                    <Setter Property="Background" Value="#e9bbec"/>
+                    <Setter Property="Foreground" Value="#643f61"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#1f618d"/>
+                    <Setter Property="Background" Value="#a01c46"/>
+                    <Setter Property="Foreground" Value="White"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <Grid Background="#ecf0f1">
+    <Grid Background="#FFF5F9">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
-        <Border Grid.Row="0" Background="#2c3e50" Padding="20">
+        <Border Grid.Row="0" Background="#643f61" Padding="20" CornerRadius="0,0,20,20">
             <TextBlock Text="Система поддержки принятия решений" 
-                      FontSize="24" FontWeight="Bold" Foreground="White"
+                      FontSize="24" FontWeight="SemiBold" 
+                      Foreground="White"
                       HorizontalAlignment="Center"
-                      TextWrapping="Wrap"/>
+                      TextWrapping="Wrap"
+                      FontFamily="Segoe UI"/>
         </Border>
 
         <!-- Кнопки выбора метода -->
@@ -63,12 +81,13 @@
 
             <Button Content="Метод анализа иерархий" 
                     Style="{StaticResource MethodButtonStyle}"
-                    Click="AHPButton_Click"/>
+                    Background="{StaticResource PinkGradient}"
+                    Click="AHPButton_Click" Width="262"/>
 
             <Button Content="Метод главного критерия" 
                     Style="{StaticResource MethodButtonStyle}"
-                    Background="#e67e22"
-                    Click="MainCriterionButton_Click"/>
+                    Background="{StaticResource GreenGradient}"
+                    Click="MainCriterionButton_Click" Width="262"/>
         </StackPanel>
     </Grid>
 </Window>

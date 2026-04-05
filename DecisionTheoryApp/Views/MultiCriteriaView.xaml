@@ -1,12 +1,68 @@
 <Window x:Class="DecisionTheoryApp.Views.MultiCriteriaView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:DecisionTheoryApp.Views"
-        mc:Ignorable="d"
-        Title="Метод главного критерия" Height="450" Width="800"
-        WindowStartupLocation="CenterScreen">
+        xmlns:converters="clr-namespace:DecisionTheoryApp.Converters"
+        xmlns:models="clr-namespace:DecisionTheoryApp.Models"
+        Title="Метод главного критерия" Height="700" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#FFF5F9"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:EnumToIndexConverter x:Key="EnumToIndex"/>
+        <converters:InverseBooleanConverter x:Key="InverseBool"/>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#643f61"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#e0e0e0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для строки оптимального результата -->
+        <Style x:Key="OptimalRowStyle" TargetType="DataGridRow">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOptimal}" Value="True">
+                    <Setter Property="Background" Value="#d5f5e3"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsFeasible}" Value="False">
+                    <Setter Property="Background" Value="#fdecea"/>
+                    <Setter Property="Foreground" Value="#aaa"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -16,31 +72,361 @@
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
-        <Border Grid.Row="0" Background="#2c3e50" Padding="10">
-            <TextBlock Text="Метод главного критерия" 
-                      FontSize="18" FontWeight="Bold" Foreground="White"
-                      HorizontalAlignment="Center"/>
+        <Border Grid.Row="0" Background="#643f61" Padding="14,10" CornerRadius="0,0,0,0">
+            <Grid>
+                <TextBlock Text="Метод главного критерия — многокритериальная оптимизация"
+                           FontSize="16" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Button Content="❓"
+                        Click="HelpButton_Click"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Width="30" Height="30"
+                        FontSize="14" FontWeight="Bold"
+                        Foreground="White"
+                        Background="#a01c46"
+                        BorderThickness="0"
+                        Focusable="False"
+                        ToolTip="Справка по методу главного критерия"/>
+            </Grid>
         </Border>
 
-        <!-- Центральная область с сообщением -->
-        <Border Grid.Row="1" Background="#ecf0f1" Padding="20">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="🚧" FontSize="72" TextAlignment="Center"/>
-                <TextBlock Text="Метод главного критерия находится в разработке" 
-                          FontSize="24" FontWeight="SemiBold" 
-                          TextAlignment="Center" Margin="0,20,0,10"/>
-                <TextBlock Text="Данный функционал будет доступен в следующих версиях приложения" 
-                          FontSize="14" Foreground="#7f8c8d"
-                          TextAlignment="Center"/>
-            </StackPanel>
-        </Border>
+        <!-- Основная область -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="340"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- Кнопка закрытия -->
-        <Border Grid.Row="2" Background="#bdc3c7" Padding="10">
-            <Button Content="Закрыть" 
-                    Width="100" Height="30"
-                    HorizontalAlignment="Center"
-                    Click="CloseButton_Click"/>
+            <!-- Левая панель: настройка -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                          Background="#fafafa" Padding="10">
+                <StackPanel>
+
+                    <!-- Переменные -->
+                    <TextBlock Text="Переменные (до 5)" Style="{StaticResource SectionHeader}"/>
+                    <ItemsControl ItemsSource="{Binding Variables}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <!-- Имя переменной -->
+                                            <Grid Margin="0,0,0,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Имя:" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                                            </Grid>
+                                            <!-- Тип переменной -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="Тип:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <ComboBox SelectedIndex="{Binding Type, Converter={StaticResource EnumToIndex}, Mode=TwoWay}" Width="150">
+                                                    <ComboBoxItem Content="Непрерывная [a, b]"/>
+                                                    <ComboBoxItem Content="Дискретная {точки}"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <!-- Непрерывная: [Min, Max], Шаг -->
+                                            <StackPanel Visibility="{Binding IsContinuous, Converter={StaticResource BoolToVis}}">
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Min" FontSize="10" Foreground="#777"/>
+                                                        <TextBox Text="{Binding MinText, UpdateSourceTrigger=LostFocus}"
+                                                        PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                        PreviewKeyDown="NumericTextBox_PreviewKeyDown" Padding="3"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Margin="4,0">
+                                                        <TextBlock Text="Max" FontSize="10" Foreground="#777"/>
+                                                        <TextBox Text="{Binding MaxText, UpdateSourceTrigger=LostFocus}"
+                                                        PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                        PreviewKeyDown="NumericTextBox_PreviewKeyDown" Padding="3"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="Шаг" FontSize="10" Foreground="#777"/>
+                                                        <TextBox Text="{Binding StepText, UpdateSourceTrigger=LostFocus}"
+                                                        PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                        PreviewKeyDown="NumericTextBox_PreviewKeyDown" Padding="3"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                            <!-- Дискретная: точки -->
+                                            <StackPanel Visibility="{Binding IsDiscrete, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="Точки (через запятую):" FontSize="10" Foreground="#777"/>
+                                                <TextBox Text="{Binding DiscretePoints, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <!-- Кнопка удаления -->
+                                        <Button Grid.Column="1" Content="✖" Width="20" Height="20"
+                                                VerticalAlignment="Top" Margin="6,0,0,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="#e74c3c" FontSize="12"
+                                                Focusable="False"
+                                                Command="{Binding DataContext.RemoveVariableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="➕ Добавить переменную"
+                            Command="{Binding AddVariableCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Margin="0,0,0,16" HorizontalAlignment="Left"/>
+
+                    <!-- Критерии -->
+                    <TextBlock Text="Критерии (до 3)" Style="{StaticResource SectionHeader}"/>
+                    <ItemsControl ItemsSource="{Binding Criteria}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <!-- Имя -->
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Имя:" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Padding="3"/>
+                                            </Grid>
+                                            <!-- Формула -->
+                                            <TextBlock Text="Формула f(x1, x2, ...):" FontSize="10" Foreground="#777"/>
+                                            <TextBox Text="{Binding Formula, UpdateSourceTrigger=PropertyChanged}"
+                                                     Padding="3" Margin="0,2,0,2"
+                                                     LostFocus="FormulaTextBox_LostFocus"/>
+                                            <!-- Ошибка формулы -->
+                                            <TextBlock Text="{Binding FormulaError}"
+                                                       Foreground="#e74c3c" FontSize="10"
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                                            <!-- Направление -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                                <TextBlock Text="Направление:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <ComboBox SelectedIndex="{Binding Direction, Converter={StaticResource EnumToIndex}, Mode=TwoWay}" Width="100">
+                                                    <ComboBoxItem Content="Максимум"/>
+                                                    <ComboBoxItem Content="Минимум"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <!-- Главный критерий -->
+                                            <CheckBox Content="Главный критерий ★"
+                                                      FontWeight="SemiBold"
+                                                      IsChecked="{Binding IsMain}"
+                                                      Command="{Binding DataContext.SetMainCriterionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                      CommandParameter="{Binding}"
+                                                      Margin="0,0,0,4"/>
+                                            <!-- Ограничение (для не-главных) -->
+                                            <StackPanel Visibility="{Binding IsConstraint, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="Ограничение:" FontSize="10" Foreground="#777"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <ComboBox SelectedIndex="{Binding ConstraintType, Converter={StaticResource EnumToIndex}, Mode=TwoWay}" Width="80" Margin="0,0,6,0">
+                                                        <ComboBoxItem Content="≥ min"/>
+                                                        <ComboBoxItem Content="≤ max"/>
+                                                        <ComboBoxItem Content="диапазон"/>
+                                                    </ComboBox>
+                                                    <!-- Одиночный порог (>= или <=) -->
+                                                    <TextBox Text="{Binding ThresholdText, UpdateSourceTrigger=LostFocus}"
+                                                             PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                             PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                                             Width="70" Padding="3"
+                                                             Visibility="{Binding IsNotRange, Converter={StaticResource BoolToVis}}"/>
+                                                    <!-- Диапазон [min, max] -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                Visibility="{Binding IsRange, Converter={StaticResource BoolToVis}}">
+                                                        <TextBox Text="{Binding ThresholdText, UpdateSourceTrigger=LostFocus}"
+                                                             PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                             PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                                                 Width="60" Padding="3"/>
+                                                        <TextBlock Text="≤ f ≤" VerticalAlignment="Center" Margin="4,0" FontSize="11"/>
+                                                        <TextBox Text="{Binding ThresholdMaxText, UpdateSourceTrigger=LostFocus}"
+                                                             PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                                             PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                                                 Width="60" Padding="3"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="✖" Width="20" Height="20"
+                                                VerticalAlignment="Top" Margin="6,0,0,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="#e74c3c" FontSize="12"
+                                                Focusable="False"
+                                                Command="{Binding DataContext.RemoveCriterionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="➕ Добавить критерий"
+                            Command="{Binding AddCriterionCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Margin="0,0,0,8" HorizontalAlignment="Left"/>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Правая панель: результаты -->
+            <Grid Grid.Column="1" Background="#FFFFFF">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="220"/>
+                </Grid.RowDefinitions>
+
+                <!-- Подсказка синтаксиса -->
+                <Border Grid.Row="0" Background="#f4e9fb" BorderBrush="#e9bbec"
+                        BorderThickness="1" Margin="10,10,10,4" Padding="10,6" CornerRadius="6">
+                    <TextBlock FontSize="11" Foreground="#643f61" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold">Синтаксис формул:</Run>
+                        <Run>x^2, Sqrt(x), Abs(x), Sin(x), Cos(x), Exp(x), Log(x) — натуральный логарифм, Log10(x), 2*x1 + 3*x2</Run>
+                    </TextBlock>
+                </Border>
+
+                <!-- Таблица результатов текущего расчёта -->
+                <Border Grid.Row="1" Margin="10,4,10,4">
+                    <Grid>
+                        <TextBlock Text="Нажмите «Рассчитать» для получения результатов"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#aaa" FontSize="14"
+                                   Visibility="{Binding IsCalculated, Converter={StaticResource InverseBool}}"/>
+                        <DataGrid x:Name="ResultsGrid"
+                                  ItemsSource="{Binding Results}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  CanUserSortColumns="True"
+                                  IsReadOnly="True"
+                                  RowStyle="{StaticResource OptimalRowStyle}"
+                                  Visibility="{Binding IsCalculated, Converter={StaticResource BoolToVis}}"
+                                  GridLinesVisibility="All"
+                                  AlternatingRowBackground="#FFF9FC"
+                                  BorderBrush="#e0e0e0"/>
+                    </Grid>
+                </Border>
+
+                <!-- История расчётов -->
+                <Border Grid.Row="2" Margin="10,0,10,6"
+                        BorderBrush="#e0e0e0" BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Заголовок -->
+                        <Border Grid.Row="0" Background="#f4e9fb" CornerRadius="8,8,0,0" Padding="10,5">
+                            <Grid>
+                                <TextBlock Text="История расчётов (оптимальные точки)"
+                                           FontWeight="SemiBold" Foreground="#643f61"
+                                           VerticalAlignment="Center" FontSize="12"/>
+                                <Button Content="🗑 Очистить"
+                                        Command="{Binding ClearHistoryCommand}"
+                                        HorizontalAlignment="Right"
+                                        Focusable="False" Padding="8,2"
+                                        BorderThickness="0" FontSize="11"
+                                        Background="#e9bbec" Foreground="#643f61"
+                                        Cursor="Hand"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Таблица истории — колонки строятся в code-behind -->
+                        <DataGrid x:Name="OptimumHistoryGrid"
+                                  Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  CanUserSortColumns="False"
+                                  IsReadOnly="True"
+                                  ItemsSource="{Binding OptimumHistory}"
+                                  AlternatingRowBackground="#FFF9FC"
+                                  BorderThickness="0"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  FontSize="12">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Width="36"
+                                                    Binding="{Binding Number}"/>
+                                <DataGridTextColumn Header="Время" Width="65"
+                                                    Binding="{Binding Time}"/>
+                                <DataGridTextColumn Header="Главный критерий" Width="130"
+                                                    Binding="{Binding MainCriterionDisplay}"/>
+                                <DataGridTextColumn Header="Оптимум" Width="*"
+                                                    Binding="{Binding OptimalPoint}"/>
+                                <DataGridTextColumn Header="Допустимых" Width="90"
+                                                    Binding="{Binding FeasibleCount}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Заглушка пустой истории -->
+                        <TextBlock Grid.Row="1"
+                                   Text="История пуста — выполните расчёт"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#aaa" FontSize="12">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OptimumHistory.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Нижняя панель -->
+        <Border Grid.Row="2" Background="#fafafa" BorderBrush="#e0e0e0" BorderThickness="0,1,0,0" Padding="10,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center" Foreground="#555" FontSize="12"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="💾 Сохранить проект"
+                            Command="{Binding SaveProjectCommand}"
+                            Style="{StaticResource ActionButton}"/>
+                    <Button Content="📂 Открыть проект"
+                            Command="{Binding LoadProjectCommand}"
+                            Style="{StaticResource ActionButton}"/>
+                    <Button Content="📄 Сохранить отчёт"
+                            Command="{Binding SaveReportCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Background="#e9bbec" Foreground="#643f61"/>
+                    <Button Content="🗑️ Очистить"
+                            Command="{Binding ClearCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Background="#ffebee" Foreground="#c62828"/>
+                    <Button Content="🧮 Рассчитать"
+                            Command="{Binding CalculateCommand}"
+                            Style="{StaticResource ActionButton}"
+                            Background="#d7f6bb" Foreground="#53723c"
+                            FontWeight="SemiBold" Padding="16,5"/>
+                    <Button Content="Закрыть"
+                            Style="{StaticResource ActionButton}"
+                            Click="CloseButton_Click" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>

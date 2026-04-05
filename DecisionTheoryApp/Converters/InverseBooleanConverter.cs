@@ -7,6 +7,7 @@ namespace DecisionTheoryApp.Converters
     /// <summary>
     /// Конвертер для инвертирования булевых значений
     /// </summary>
+    /// 
     public class InverseBooleanConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
